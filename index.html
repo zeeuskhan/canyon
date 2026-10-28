@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chaco Canyon 3D Digital Twin & Archaeoastronomy Explorer</title>
+  <meta name="description" content="Interactive 3D architectural reconstruction of Pueblo Bonito (AD 850–1150) built from 0.5m airborne LiDAR, HABS/NPS measured surveys, and Chaco Research Archive discoveries." />
+  <meta property="og:title" content="Chaco Canyon 3D Digital Twin & Archaeoastronomy Explorer" />
+  <meta property="og:description" content="Interactive 3D architectural reconstruction of Pueblo Bonito (AD 850–1150) built from 0.5m airborne LiDAR, HABS/NPS measured surveys, and Chaco Research Archive discoveries." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body data-mode="orbit" data-section="overview">
+  <!-- Top Scroll Progress Bar (preserved for legacy story query mode) -->
+  <div id="scroll-progress-track" aria-hidden="true">
+    <div id="scroll-progress-fill"></div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" aria-label="Loading">
+    <div class="loader-card">
+      <div class="loader-emblem">
+        <svg viewBox="0 0 120 120" width="72" height="72" aria-hidden="true">
+          <defs>
+            <radialGradient id="loader-dial-grad" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#1b1508" stop-opacity="0.95" />
+              <stop offset="75%" stop-color="#120d05" stop-opacity="0.95" />
+              <stop offset="100%" stop-color="#0a0703" stop-opacity="0.98" />
+            </radialGradient>
+            <radialGradient id="loader-orb-glow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#fff6c2" stop-opacity="0.95" />
+              <stop offset="55%" stop-color="#f8d040" stop-opacity="0.48" />
+              <stop offset="100%" stop-color="#f8d040" stop-opacity="0.0" />
+            </radialGradient>
+          </defs>
+          <circle cx="60" cy="60" r="54" class="loader-outer-bezel" />
+          <circle cx="60" cy="60" r="51" fill="url(#loader-dial-grad)" class="loader-dial-plate" />
+          <line x1="60" y1="20" x2="60" y2="100" class="loader-axis-chord" />
+          <line x1="20" y1="60" x2="100" y2="60" class="loader-axis-chord" />
+          <circle cx="60" cy="60" r="35" class="loader-orbit-track" />
+          <path d="M44,60 A16,14.5 0 0,1 76,60 Z" class="loader-ruin-silhouette" />
+          <line x1="44" y1="60" x2="76" y2="60" class="loader-ruin-ew-wall" />
+          <line x1="60" y1="45.5" x2="60" y2="60" class="loader-ruin-meridian" />
+          <g class="loader-sun-spinner">
+            <circle cx="60" cy="60" r="35" class="loader-active-arc" />
+            <circle cx="60" cy="25" r="7.5" fill="url(#loader-orb-glow)" />
+            <circle cx="60" cy="25" r="3.4" class="loader-orb-core" />
+          </g>
+        </svg>
+      </div>
+      <div class="progress-bar-track">
+        <div id="loading-progress-bar" class="progress-bar-fill"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- FULL-SCREEN 3D VIEWPORT + EDITORIAL MONOGRAPH OVERLAYS                -->
+  <!-- ===================================================================== -->
+  <div id="app-shell">
+    <!-- 100vw x 100vh Full-Screen 3D Render Stage (Supports 16:9 & 9:16 Blog Iframe Ratios) -->
+    <section id="viewport-stage" aria-label="Full-Screen 3D Ruin Viewport">
+      <div id="canvas-container" aria-label="Interactive 3D Chaco Canyon Digital Twin"></div>
+
+      <!-- Compact 16:9 / 9:16 Blog Embed Aspect Ratio Switcher -->
+      <div id="aspect-ratio-bar" class="aspect-ratio-bar hidden" role="group" aria-label="Aspect Ratio Frame Switcher">
+        <button type="button" class="aspect-btn active" data-aspect="auto" title="Auto-fit enclosing iframe (16:9 or 9:16)">Auto</button>
+        <button type="button" class="aspect-btn" data-aspect="16:9" title="Lock 16:9 Landscape Blog Embed Frame">16:9</button>
+        <button type="button" class="aspect-btn" data-aspect="9:16" title="Lock 9:16 Vertical Blog Embed Frame">9:16</button>
+      </div>
+
+      <!-- Centered Editorial Title that Scrolls Up & Disappears as User Scrolls -->
+      <div id="center-title-overlay" aria-label="Chaco Canyon Title">
+        <h1 class="center-hero-title">CHACO CANYON</h1>
+      </div>
+
+      <!-- Translucent Yellow Hover Callout Block (Era Eyebrow + Title Only) -->
+      <div id="room-hover-tag" class="room-hover-tag hidden" role="status" aria-live="polite">
+        <div id="hover-tag-eyebrow" class="hover-tag-eyebrow">STAGE I OLD BONITO CORE • AD 850–935 (BURIALS AD 800–1130)</div>
+        <div id="hover-tag-title" class="hover-tag-title">ROOM 33 — MATRILINEAL MORTUARY CRYPT</div>
+      </div>
+
+      <!-- Translucent Yellow Room Block: Image Carousel Arrows + Key Factual Points -->
+      <aside id="room-side-note" class="room-side-note hidden" aria-live="polite">
+        <div class="room-side-top">
+          <div id="room-side-eyebrow" class="room-side-eyebrow">STAGE I • AD 850–935</div>
+          <button id="btn-side-unfocus" class="room-side-close" title="Close &amp; return to full ruin (Esc)" aria-label="Close">✕</button>
+        </div>
+        <h2 id="room-side-title" class="room-side-title">Room 33 (with Upper Room 58)</h2>
+
+        <!-- Image Viewer with Left/Right Arrows & Short Factual Label -->
+        <div class="room-side-archival-box">
+          <div class="rs-media-frame">
+            <img id="rs-archival-img" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Archival &amp; LiDAR Survey Record" />
+            <button id="btn-media-prev" class="rs-media-arrow rs-arrow-left" type="button" aria-label="Previous image" title="Previous image">‹</button>
+            <button id="btn-media-next" class="rs-media-arrow rs-arrow-right" type="button" aria-label="Next image" title="Next image">›</button>
+            <span id="rs-media-counter" class="rs-media-counter">1 / 4</span>
+          </div>
+          <div id="rs-archival-caption" class="rs-archival-caption">
+            Carved wooden flutes • AMNH (Pepper 1920)
+          </div>
+        </div>
+
+        <!-- Concise Factually Verified Key Points -->
+        <ul id="room-side-keypoints" class="room-side-keypoints">
+          <li>Ground-story burial crypt beneath Upper Room 58 in the Old Bonito northern core; modeled 2-story elevation and timber plank ceiling/floor are an interpretive reconstruction (Pepper 1909, 1920).</li>
+          <li>14 human burials excavated across two levels wrapped in woven reed mats: Burials 13 &amp; 14 below a hand-hewn pine plank floor, 12 above.</li>
+          <li>Ancient DNA (Kennett et al. 2017 Nature Communications) sequenced 9 of 14 skeletons; all 9 shared identical mitochondrial haplotype B2y1 (~AD 800–1130).</li>
+          <li>&gt;56,000 turquoise pieces (beads, pendants, mosaic cylinder basket), shell trumpets &amp; 8 carved wooden flutes (Pepper 1909, 1920; Plog &amp; Heitman 2010).</li>
+        </ul>
+
+        <div class="room-side-nav">
+          <button id="btn-side-prev" class="rs-nav-btn" title="Previous Room (Left Bracket [)">← Prev</button>
+          <span id="rs-stop-indicator" class="rs-stop-indicator">1 / 12</span>
+          <button id="btn-side-next" class="rs-nav-btn" title="Next Room (Right Bracket ])">Next →</button>
+        </div>
+      </aside>
+
+      <!-- Minimalist Cardinal N/S/E/W Dial & Seasonal Sun Control (NASA EO-5678) -->
+      <div id="celestial-compass" class="celestial-compass" data-active-season="equinox" aria-label="Cardinal Sun &amp; Season Observatory Control">
+        <div class="compass-dial-wrap">
+          <!-- Tiny Info Button (Top-Right of Dial) -->
+          <button
+            id="compass-info-btn"
+            class="compass-info-btn"
+            type="button"
+            aria-label="Measured cardinal and solstice alignments of Pueblo Bonito"
+            aria-expanded="false"
+            title="Cardinal &amp; Solstice Alignments (Sofaer 1997; NASA EO-5678)"
+          >i</button>
+
+          <!-- Translucent Yellow Info Popover (Matches Room UI + NASA EO-5678 Citation) -->
+          <div id="compass-info-popover" class="compass-info-popover hidden" role="dialog" aria-label="Cardinal Solar Alignment Info">
+            <div class="compass-info-header">
+              <span class="compass-info-title">CARDINAL &amp; SOLSTICE AXES (36.06°N)</span>
+              <button id="compass-info-close" class="compass-info-close" type="button" aria-label="Close info">✕</button>
+            </div>
+            <p class="compass-info-text">
+              Measured architectural and solar azimuth alignments documented at Pueblo Bonito (Sofaer 1997; Farmer 2003; NASA EO-5678):
+            </p>
+            <ul class="compass-info-list">
+              <li><strong>E–W Southern Wall (90°↔270°):</strong> Oriented East–West; aligns with <strong>Equinox</strong> sunrise (90° E) and sunset (270° W).</li>
+              <li><strong>N–S Dividing Wall (0°↔180°):</strong> Bisects the central court along the <strong>True North–South</strong> meridian (Solar Noon shadow axis).</li>
+              <li><strong>Solstice Horizon Swing (60°–120°):</strong> Sunrise shifts from <strong>~60.5° ENE</strong> (Summer Solstice) to <strong>~119.5° ESE</strong> (Winter Solstice; Room 228 corner window, Reyman 1976).</li>
+            </ul>
+            <a
+              href="https://science.nasa.gov/earth/earth-observatory/pueblo-bonito-ruins-chaco-canyon-5678/"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="compass-info-cite"
+            >NASA Earth Observatory (EO-5678) • Sofaer (1997) ↗</a>
+          </div>
+
+          <svg id="celestial-compass-svg" viewBox="0 0 120 120">
+            <defs>
+              <radialGradient id="compass-bg-grad" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#1b1508" stop-opacity="0.92" />
+                <stop offset="75%" stop-color="#120d05" stop-opacity="0.92" />
+                <stop offset="100%" stop-color="#0a0703" stop-opacity="0.96" />
+              </radialGradient>
+              <linearGradient id="compass-fov-grad" x1="50%" y1="100%" x2="50%" y2="0%">
+                <stop offset="0%" stop-color="#f8d040" stop-opacity="0.0" />
+                <stop offset="100%" stop-color="#f8d040" stop-opacity="0.18" />
+              </linearGradient>
+              <radialGradient id="compass-orb-glow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#fff6c2" stop-opacity="0.95" />
+                <stop offset="55%" stop-color="#f8d040" stop-opacity="0.48" />
+                <stop offset="100%" stop-color="#f8d040" stop-opacity="0.0" />
+              </radialGradient>
+            </defs>
+
+            <!-- Outer Instrument Bezel -->
+            <circle cx="60" cy="60" r="57.0" class="compass-outer-bezel" />
+            <circle cx="60" cy="60" r="54.2" fill="url(#compass-bg-grad)" class="compass-dial-plate" />
+
+            <!-- Subtle Camera Heading Cone at 12 o'clock -->
+            <path d="M60,60 L43,13 A50,50 0 0,1 77,13 Z" fill="url(#compass-fov-grad)" class="compass-fov-wedge" />
+            <polygon points="60,2.5 62.2,6.4 57.8,6.4" class="compass-heading-lubber" />
+
+            <!-- World-Space Rotating Cardinal Ring (rotates live with 3D camera yaw) -->
+            <g id="compass-world-ring" transform="rotate(0 60 60)">
+              <!-- Subtle Degree Ticks -->
+              <g id="compass-ticks"></g>
+
+              <!-- Two Perpendicular Cardinal Axes (N–S Meridian & E–W Southern Wall) -->
+              <g id="compass-chords">
+                <line id="compass-ns-axis" data-chord="meridian_noon" x1="60" y1="22" x2="60" y2="98" class="compass-chord chord-meridian" />
+                <line id="compass-ew-axis" data-chord="equinox_wall" x1="22" y1="60" x2="98" y2="60" class="compass-chord chord-equinox" />
+              </g>
+
+              <!-- Faint Full 360° Reference Ring -->
+              <circle id="compass-orbit-track" cx="60" cy="60" r="33" class="compass-orbit-track" />
+
+              <!-- The 3 Seasonal Sun Arcs at 36.06°N (Sunrise -> 180° South Noon -> Sunset) -->
+              <g id="compass-season-arcs" class="compass-season-arcs">
+                <!-- Summer Solstice Arc: 60.5° ENE (88.73, 43.75) -> 180° S -> 299.5° WNW (31.27, 43.75) -->
+                <path
+                  id="compass-arc-summer"
+                  data-season-arc="summer"
+                  d="M 88.73 43.75 A 33 33 0 1 1 31.27 43.75"
+                  class="compass-season-arc arc-summer"
+                />
+                <!-- Equinox Arc: 90° Due East (93.0, 60.0) -> 180° S -> 270° Due West (27.0, 60.0) -->
+                <path
+                  id="compass-arc-equinox"
+                  data-season-arc="equinox"
+                  d="M 93.00 60.00 A 33 33 0 0 1 27.00 60.00"
+                  class="compass-season-arc arc-equinox active"
+                />
+                <!-- Winter Solstice Arc: 119.5° ESE (88.73, 76.25) -> 180° S -> 240.5° WSW (31.27, 76.25) -->
+                <path
+                  id="compass-arc-winter"
+                  data-season-arc="winter"
+                  d="M 88.73 76.25 A 33 33 0 0 1 31.27 76.25"
+                  class="compass-season-arc arc-winter"
+                />
+              </g>
+
+              <!-- Active Season Sunrise, Noon (180° S), and Sunset Anchor Dots -->
+              <g id="compass-horizon-nodes" class="compass-horizon-nodes">
+                <circle id="compass-node-sunrise" cx="93.00" cy="60.00" r="2.1" class="compass-horizon-node node-rise" />
+                <circle id="compass-node-noon" cx="60.00" cy="93.00" r="2.1" class="compass-horizon-node node-noon" />
+                <circle id="compass-node-sunset" cx="27.00" cy="60.00" r="2.1" class="compass-horizon-node node-set" />
+              </g>
+
+              <!-- Pueblo Bonito Half-Moon ("D") Footprint Centered on the E–W (y=60) & N–S (x=60) Axes -->
+              <g id="compass-center-btn" class="compass-center-btn">
+                <title>Click to animate the sun across the active season's sky arc</title>
+                <path d="M44,60 A16,14.5 0 0,1 76,60 Z" class="compass-ruin-silhouette" />
+                <!-- Straight East–West Southern Wall (Locked on y=60) -->
+                <line x1="44" y1="60" x2="76" y2="60" class="compass-ruin-ew-wall" />
+                <!-- Perpendicular North–South Dividing Wall (Locked on x=60 pointing North) -->
+                <line x1="60" y1="45.5" x2="60" y2="60" class="compass-ruin-meridian" />
+              </g>
+
+              <!-- True North Pointer Tip (0°) -->
+              <polygon points="60,5.0 62.4,10.0 57.6,10.0" class="compass-north-needle" />
+
+              <!-- Upright N / E / S / W Cardinal Labels -->
+              <g class="compass-cardinal-label-group" data-deg="0" transform="translate(60, 15.5)">
+                <text class="compass-cardinal-text cardinal-n" text-anchor="middle" dominant-baseline="central">N</text>
+              </g>
+              <g class="compass-cardinal-label-group" data-deg="90" transform="translate(104.5, 60)">
+                <text class="compass-cardinal-text" text-anchor="middle" dominant-baseline="central">E</text>
+              </g>
+              <g class="compass-cardinal-label-group" data-deg="180" transform="translate(60, 104.5)">
+                <text class="compass-cardinal-text" text-anchor="middle" dominant-baseline="central">S</text>
+              </g>
+              <g class="compass-cardinal-label-group" data-deg="270" transform="translate(15.5, 60)">
+                <text class="compass-cardinal-text" text-anchor="middle" dominant-baseline="central">W</text>
+              </g>
+
+              <!-- Live Sun Ray from Center through Sun Orb -->
+              <line id="compass-celestial-ray" x1="60" y1="60" x2="93" y2="60" class="compass-celestial-ray" />
+
+              <!-- Draggable Sun Orb on Track (r=33) -->
+              <g id="compass-sun-orb" class="compass-sun-orb" transform="translate(93, 60)">
+                <circle r="11" class="orb-hit-target" />
+                <circle r="7.2" fill="url(#compass-orb-glow)" class="orb-halo" />
+                <circle r="3.6" class="orb-core" />
+                <circle id="compass-orb-lunar-cut" cx="1.6" cy="-1.1" r="2.8" class="orb-lunar-cut" />
+              </g>
+            </g>
+          </svg>
+        </div>
+
+        <!-- Compact Yellow-Centric Season Pill Bar + Readout -->
+        <div class="compass-season-controls" role="group" aria-label="Seasonal Sun Alignment">
+          <div class="compass-season-pills">
+            <button type="button" class="compass-season-btn active" data-season="equinox" title="Spring &amp; Autumn Equinox (90° E ↔ 270° W): Click to cycle Sunrise (90° E), Noon (180° S), and Sunset (270° W)">
+              Equinox
+            </button>
+            <button type="button" class="compass-season-btn" data-season="summer" title="Summer Solstice (60° ENE ↔ 300° WNW): Click to cycle Sunrise (60° ENE), Noon (180° S), and Sunset (300° WNW)">
+              Summer
+            </button>
+            <button type="button" class="compass-season-btn" data-season="winter" title="Winter Solstice (120° ESE ↔ 240° WSW): Click to cycle Sunrise (120° ESE), Noon (180° S), and Sunset (240° WSW)">
+              Winter
+            </button>
+          </div>
+          <div id="compass-sun-readout" class="compass-sun-readout" title="Click season again or drag sun along the arc to inspect Sunrise, Solar Noon (N–S wall), and Sunset">
+            90° E · E–W Wall Sunrise
+          </div>
+        </div>
+      </div>
+
+      <!-- Subtle Center Crosshair for First-Person Free Walk Mode (hidden in clean mode) -->
+      <div id="walk-hud" class="walk-stage-hud hidden">
+        <div class="walk-crosshair">+</div>
+      </div>
+
+      <!-- Proximity / Room Arrival Notification Toast (hidden in clean mode) -->
+      <div id="proximity-toast" class="proximity-toast hidden" aria-live="polite">
+        <span class="toast-dot"></span>
+        <span id="proximity-toast-text">Exploring Room 33: High-Status Matrilineal Crypt</span>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- TOP FLOATING BAR: BRAND + PRIMARY MODE SWITCHER + TOOLS             -->
+    <!-- =================================================================== -->
+    <header id="top-bar">
+      <div class="brand-block" id="btn-brand-home" title="Return to Wide Orbit Overview">
+        <div class="brand-icon">☉</div>
+        <div class="brand-text">
+          <span class="brand-title">CHACO CANYON</span>
+          <span class="brand-sub">Pueblo Bonito • AD 850–1150</span>
+        </div>
+      </div>
+
+      <!-- Center Experience Mode Switcher -->
+      <nav class="mode-switcher" aria-label="Experience Mode">
+        <button id="btn-mode-orbit" class="mode-btn active" data-mode="orbit" title="Full-screen wide orbit shot of the entire ruin">
+          <span>🦅</span> Wide Orbit
+        </button>
+        <button id="btn-mode-guided" class="mode-btn" data-mode="guided" title="Guided walkthrough across architectural sections and rooms">
+          <span>🧭</span> Guided Walkthrough
+        </button>
+        <button id="btn-mode-walk" class="mode-btn" data-mode="walk" title="First-person free walk at eye or terrace level (WASD / Click ground)">
+          <span>🚶</span> Free Walk
+        </button>
+        <!-- Preserved hidden story button for query param compatibility -->
+        <button id="btn-mode-story" class="mode-btn hidden-mode-btn" data-mode="story">
+          <span>📜</span> Story
+        </button>
+      </nav>
+
+      <!-- Right Floating Action Pills -->
+      <div class="header-actions">
+        <button id="btn-discoveries-drawer" class="action-pill discovery-pill" title="Rooms &amp; Sacred Areas Explored">
+          🏺 Rooms <span id="discovery-counter-badge" class="pill-count">2 / 12</span>
+        </button>
+
+        <div class="popover-wrapper">
+          <button id="btn-env-popover" class="action-pill" title="Adjust Hyperrealistic Sun Lighting, Solstices &amp; Construction Era">
+            ☀️ <span id="solar-mini-readout">16:50 • Golden Hour</span> ▾
+          </button>
+          <!-- Environment, Lighting & Chronology Popover -->
+          <div id="env-popover" class="floating-popover hidden">
+            <div class="popover-section">
+              <div class="pop-header">
+                <span>SOLAR LIGHTING (36.06°N)</span>
+                <span id="solar-readout" class="mono-badge">16:50 • Alt 19° Az 252°</span>
+              </div>
+              <div class="slider-row">
+                <label for="time-slider">Sun Time</label>
+                <input id="time-slider" type="range" min="5.5" max="22.0" step="0.05" value="16.85" />
+              </div>
+              <div class="preset-grid">
+                <button class="solar-preset-btn active" data-season="equinox" data-hour="16.85">🌅 Golden Hour Relief</button>
+                <button class="solar-preset-btn" data-season="summer" data-hour="17.4">🔥 Deep Raking Sunset</button>
+                <button class="solar-preset-btn" data-season="equinox" data-hour="6.65">🌄 Equinox Sunrise</button>
+                <button class="solar-preset-btn" data-season="winter" data-hour="7.65">❄️ Winter Solstice</button>
+                <button class="solar-preset-btn" data-season="summer" data-hour="12.0">☀️ High Noon</button>
+                <button class="solar-preset-btn" data-season="night" data-hour="21.5">🌌 Night Kiva Fires</button>
+              </div>
+            </div>
+
+            <div class="popover-section">
+              <div class="pop-header">
+                <span>CONSTRUCTION PHASES (AD 850–1115)</span>
+              </div>
+              <div class="phase-pills">
+                <button class="phase-btn active" data-phase="all">All Phases</button>
+                <button class="phase-btn" data-phase="stage1">I: AD 850</button>
+                <button class="phase-btn" data-phase="stage2">II: AD 1040</button>
+                <button class="phase-btn" data-phase="stage3">III: AD 1060</button>
+                <button class="phase-btn" data-phase="stage4">IV: AD 1085+</button>
+              </div>
+              <div class="layer-toggles">
+                <label class="toggle-chip"><input type="checkbox" id="chk-show-labels" checked /> 3D Room Pins</label>
+                <label class="toggle-chip"><input type="checkbox" id="chk-show-alignments" checked /> Solar Sightlines</label>
+                <label class="toggle-chip"><input type="checkbox" id="chk-show-roofs" checked /> Pine Vigas (Reconstructed)</label>
+                <label class="toggle-chip"><input type="checkbox" id="chk-show-rockfall" checked /> 1941 Rockfall</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button id="btn-open-map" class="action-pill" title="Open 2D Georeferenced Floorplan &amp; Room Search">
+          🗺️ Floorplan
+        </button>
+
+        <button id="btn-open-atlas" class="action-pill" title="View LiDAR Breakdowns, HABS No. NM-30 (LOC nm0107) Plans, Sun Dagger &amp; Data Sources">
+          🏛️ Archive
+        </button>
+
+        <button id="btn-record-video" class="action-pill record-pill" title="Record an HD Walkthrough Video">
+          🎥 <span id="record-btn-label">Record</span>
+        </button>
+
+        <button id="btn-toggle-hud" class="action-pill icon-pill" title="Toggle Clean Full-Screen View (Shortcut: H)">
+          👁️
+        </button>
+      </div>
+    </header>
+
+    <!-- =================================================================== -->
+    <!-- ARCHITECTURAL SECTION BAR (6 CURATED SECTIONS OF THE RUIN)          -->
+    <!-- =================================================================== -->
+    <nav id="sections-bar" aria-label="Architectural Sections">
+      <div class="sections-bar-inner" id="sections-pills-container">
+        <!-- Populated dynamically in app.js from WALKTHROUGH_SECTIONS -->
+      </div>
+
+      <div class="Camera-quick-tools">
+        <button id="btn-cycle-elev" class="stage-pill-btn hidden" title="Change Walk Elevation (Shortcut: Q / E)">
+          ↕ Level: <span id="walk-elev-label">Plaza 1.8m</span>
+        </button>
+        <button id="btn-toggle-autorotate" class="stage-pill-btn active" title="Toggle Slow Cinematic Orbit">
+          ↻ Auto-Orbit
+        </button>
+        <button id="btn-reset-view" class="stage-pill-btn" title="Reset to Wide Overview Shot">
+          ↺ Wide Shot
+        </button>
+        <button id="btn-fullscreen-stage" class="stage-pill-btn icon-only" title="Toggle Browser Fullscreen">
+          ⛶
+        </button>
+      </div>
+    </nav>
+
+    <!-- =================================================================== -->
+    <!-- WIDE ORBIT HERO OVERLAY (SHOWN IN WIDE OVERVIEW SHOT)               -->
+    <!-- =================================================================== -->
+    <section id="overview-hero-card" class="overview-hero-card" aria-label="Ruin Overview &amp; Walkthrough Launchpad">
+      <div class="hero-eyebrow">
+        <span class="hero-dot"></span>
+        <span>0.5m LIDAR &amp; ARCHAEOLOGICAL SURVEY • 36.0605°N, 107.9616°W</span>
+      </div>
+      <h2 id="hero-section-title">Pueblo Bonito Great House &amp; Chacra Mesa Escarpment</h2>
+      <p id="hero-section-desc">
+        Spanning <strong>~175 m (162–175 m) × 98 m</strong> with <strong>~800 terraced sandstone rooms</strong> (433 georeferenced ground-story &amp; sub-court polygons) rising up to a reconstructed 4 stories (~14.0 m) and <strong>35+ recessed and roomblock-enclosed ceremonial kivas</strong> flanking open East and West Courts, this 3D architectural reconstruction integrates 0.5m airborne LiDAR (OpenTopography OT.042019.6342.1) with NPS (Lekson 1984) and HABS No. NM-30 (LOC Control No. nm0107) surveys.
+      </p>
+      <div class="hero-stats-row">
+        <div class="hero-stat">
+          <span class="stat-val">~800</span>
+          <span class="stat-lbl">Total Rooms (433 GIS Polygons)</span>
+        </div>
+        <div class="hero-stat">
+          <span class="stat-val">~175m</span>
+          <span class="stat-lbl">South Wall (162–175m)</span>
+        </div>
+        <div class="hero-stat">
+          <span class="stat-val">12 Rooms</span>
+          <span class="stat-lbl">Curated Stops</span>
+        </div>
+        <div class="hero-stat">
+          <span class="stat-val">AD 850–1130</span>
+          <span class="stat-lbl">Tree-Ring Span</span>
+        </div>
+      </div>
+      <div class="hero-actions-row">
+        <button id="btn-start-walkthrough" class="hero-primary-btn">
+          <span>🧭</span> Start Guided Room Walkthrough
+        </button>
+        <button id="btn-enter-freewalk" class="hero-secondary-btn">
+          <span>🚶</span> Walk Inside Plaza (WASD)
+        </button>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- RIGHT FLOATING ROOM DOSSIER DRAWER (COLLAPSIBLE)                    -->
+    <!-- =================================================================== -->
+    <button id="btn-reopen-dossier" class="reopen-dossier-btn hidden" title="Show Room Dossier Panel">
+      ‹ Room Dossier
+    </button>
+
+    <aside id="inspector-drawer" class="inspector-drawer collapsed-in-overview" aria-label="Active Room Discovery Dossier">
+      <div class="inspector-header">
+        <div class="inspector-badges">
+          <span id="info-category-badge" class="cat-badge">STOP 1 OF 12 • OLD BONITO</span>
+          <span id="info-coords-badge" class="mono-badge">ROOM</span>
+        </div>
+        <button id="btn-close-inspector" class="icon-close-btn" title="Collapse Room Dossier">✕</button>
+      </div>
+
+      <div class="inspector-title-block">
+        <h2 id="info-title">Room 33 (with Upper Room 58) — High-Status Matrilineal Burial Crypt</h2>
+        <div id="info-subtitle" class="dossier-phase">Pueblo Bonito • Stage I (AD 850–935)</div>
+        <div id="info-excavator" class="dossier-excavator">Excavated by George H. Pepper (Hyde Expedition, 1896; Pepper 1909, 1920) • NPS Survey (Lekson 1984)</div>
+      </div>
+
+      <!-- Tabbed Visual Card (Schematic Diagram vs Archival Photo) -->
+      <div class="visual-card">
+        <div class="visual-tabs">
+          <button class="vis-tab active" data-vis="diagram">📐 Schematic Diagram</button>
+          <button class="vis-tab" data-vis="photo">📷 LiDAR / HABS / NPS</button>
+        </div>
+        <figure id="vis-pane-diagram" class="artifact-canvas-card">
+          <canvas id="artifact-preview-canvas" width="320" height="140"></canvas>
+          <figcaption id="artifact-canvas-caption">Schematic Illustration (Archaeological Survey Record)</figcaption>
+        </figure>
+        <figure id="vis-pane-photo" class="ref-thumb hidden" title="Click to open full Archive modal">
+          <img id="info-photo-img" src="./renders/render_kiva_a.jpg" alt="Archival Reference" />
+          <figcaption id="info-photo-cap">NPS / HABS No. NM-30 (LOC nm0107) / 0.5m LiDAR Reference (Click to enlarge ↗)</figcaption>
+        </figure>
+      </div>
+
+      <!-- Compact Metrics Grid -->
+      <div class="metrics-grid">
+        <div class="metric-box">
+          <div id="lbl-masonry" class="metric-label">MASONRY</div>
+          <div id="info-masonry" class="metric-val">Type I Tabular</div>
+        </div>
+        <div class="metric-box">
+          <div id="lbl-dendro" class="metric-label">TREE-RING / DATING</div>
+          <div id="info-dendro" class="metric-val">AD 800–1130 (AMS ¹⁴C)</div>
+        </div>
+        <div class="metric-box">
+          <div id="lbl-dimensions" class="metric-label">RECONSTRUCTION STATUS</div>
+          <div id="info-dimensions" class="metric-val">Est. 2 Stories (Interpretive Reconstruction / Approximate)</div>
+        </div>
+        <div class="metric-box">
+          <div id="lbl-area" class="metric-label">SURVEY RECORD</div>
+          <div id="info-area" class="metric-val">NPS (Lekson 1984) &amp; HABS No. NM-30</div>
+        </div>
+      </div>
+
+      <!-- Concise Story & Finds -->
+      <div class="dossier-scroll-body">
+        <div class="dossier-section">
+          <h3 id="lbl-summary-heading">ARCHAEOLOGICAL RECORD</h3>
+          <p id="info-summary"></p>
+        </div>
+
+        <div class="dossier-section">
+          <h3 id="lbl-artifacts-heading">EXCAVATED ARTIFACTS &amp; EVIDENCE</h3>
+          <p id="info-artifacts" class="artifact-box"></p>
+        </div>
+      </div>
+
+      <div class="inspector-footer">
+        <button id="btn-walk-here" class="primary-action-btn" title="Step inside/beside this room at eye level">
+          🚶 Step Inside View
+        </button>
+        <button id="btn-focus-selected" class="secondary-btn" title="Orbit camera around this room">
+          🦅 Orbit Room
+        </button>
+        <button id="btn-next-discovery" class="secondary-btn" title="Advance to the next room in the walkthrough">
+          Next Room →
+        </button>
+      </div>
+    </aside>
+
+    <!-- =================================================================== -->
+    <!-- BOTTOM FLOATING WALKTHROUGH DOCK: GUIDED CONTROLS + ROOM STRIP      -->
+    <!-- =================================================================== -->
+    <section id="areas-strip-section" aria-label="Guided Walkthrough &amp; Room Explorer">
+      <!-- Top Row of Bottom Dock: Guided Transport + Walk Pad + Control Hints -->
+      <div class="areas-strip-header">
+        <div class="guided-transport-bar">
+          <button id="btn-prev-area" class="transport-btn" title="Previous Room (Left Bracket)">
+            ← Prev Room
+          </button>
+          <button id="btn-guided-walk" class="transport-btn transport-play-btn" title="Auto-guide through every section and room">
+            <span id="guided-walk-icon">▶</span> <span id="guided-walk-label">Auto-Guide Tour</span>
+          </button>
+          <button id="btn-next-area-strip" class="transport-btn" title="Next Room (Right Bracket)">
+            Next Room →
+          </button>
+          <div class="section-progress-pill">
+            <span id="active-section-badge">SECTION I • WIDE OVERVIEW</span>
+          </div>
+        </div>
+
+        <!-- On-Screen Walk Pad (shown in Walk / Guided Mode) -->
+        <div id="onscreen-walk-pad" class="walk-pad" aria-label="On-screen movement controls">
+          <button class="pad-btn" data-move="turnLeft" title="Turn Left (Left Arrow)">↶</button>
+          <button class="pad-btn" data-move="left" title="Step Left (A)">◀</button>
+          <button class="pad-btn pad-primary" data-move="forward" title="Walk Forward (W / Up Arrow)">▲ Walk</button>
+          <button class="pad-btn" data-move="backward" title="Walk Backward (S / Down Arrow)">▼</button>
+          <button class="pad-btn" data-move="right" title="Step Right (D)">▶</button>
+          <button class="pad-btn" data-move="turnRight" title="Turn Right (Right Arrow)">↷</button>
+        </div>
+
+        <div id="walk-hint-text" class="stage-hint hidden">
+          <b>WASD / Arrows</b> Walk • <b>Drag</b> Look 360° • <b>Click Ground</b> Walk To • <b>Click Room Pin</b> Inspect
+        </div>
+        <div id="explore-hud" class="stage-hint">
+          <b>Drag</b> Orbit 360° • <b>Right-Drag</b> Pan • <b>Scroll</b> Zoom • <b>Click Any Room or Pin</b> Explore
+        </div>
+      </div>
+
+      <!-- Room Cards Strip (12 Curated Rooms grouped by Section) -->
+      <div id="discovery-chips-grid" class="discovery-chips-grid"></div>
+    </section>
+  </div>
+
+  <!-- Legacy Story Containers (Hidden; preserved for URL query compatibility) -->
+  <main id="story-scroller" class="hidden" aria-label="Chaco Canyon Archaeological Scroll Story">
+    <div id="story-chapters-container"></div>
+  </main>
+  <nav id="chapter-dots" class="hidden" aria-label="Story Chapters"></nav>
+
+  <!-- ===================================================================== -->
+  <!-- ON-DEMAND 2D GEOREFERENCED FLOORPLAN & SEARCH DRAWER                  -->
+  <!-- ===================================================================== -->
+  <section id="map-drawer" class="map-drawer hidden" aria-label="2D Georeferenced Floorplan">
+    <div class="map-drawer-header">
+      <div>
+        <span class="map-drawer-title">GEOREFERENCED FLOORPLAN (433 POLYGONS: 403 ACTIVE + 30 SUB-COURT)</span>
+        <span class="map-drawer-sub">Click any room, kiva, or glowing cyan discovery dot to walk/fly there</span>
+      </div>
+      <button id="btn-close-map" class="icon-close-btn" title="Close Map">✕</button>
+    </div>
+
+    <div class="map-controls-row">
+      <div class="minimap-site-tabs">
+        <button class="mini-tab active" data-site="pueblo_bonito">Pueblo Bonito (403 Active / 433 Total)</button>
+      </div>
+      <div class="search-box">
+        <input id="room-search-input" type="text" placeholder="Search Room 33, Room 28, Kiva A, Room 249…" list="room-datalist" />
+        <datalist id="room-datalist"></datalist>
+        <button id="btn-room-search">Go</button>
+      </div>
+    </div>
+
+    <canvas id="minimap-canvas" width="440" height="230"></canvas>
+
+    <div class="minimap-legend">
+      <span><i class="leg-box leg-old"></i>Old Bonito (AD 850)</span>
+      <span><i class="leg-box leg-4s"></i>4-Story Spine</span>
+      <span><i class="leg-box leg-wing"></i>Wings (1–3S)</span>
+      <span><i class="leg-box leg-kiva"></i>Kivas (35+)</span>
+      <span><i class="leg-box leg-disc"></i>Guided Room</span>
+      <span><i class="leg-box leg-you"></i>Camera</span>
+    </div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL: 0.5m LIDAR, HABS NO. NM-30 (LOC nm0107), NPS ARCHIVE & SOURCES -->
+  <!-- ===================================================================== -->
+  <div id="atlas-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="atlas-modal-title">
+    <div class="modal-window">
+      <div class="modal-header">
+        <div>
+          <h2 id="atlas-modal-title">CHACO CANYON 0.5m LIDAR, HABS NO. NM-30 (LOC nm0107) &amp; NPS ARCHAEOLOGICAL ATLAS</h2>
+          <p>Grounded in OpenTopography 0.5m Airborne LiDAR (OT.042019.6342.1), Historic American Buildings Survey HABS No. NM-30 (Library of Congress Control No. nm0107 / Call No. HABS NM,23-CHACA,1-), and U.S. National Park Service (NPS) Surveys</p>
+        </div>
+        <button id="btn-close-atlas" class="close-modal-btn" aria-label="Close Atlas">✕</button>
+      </div>
+
+      <div class="modal-tabs">
+        <button class="atlas-tab-btn active" data-tab="tab-renders">1. 0.5m LiDAR Breakdowns, 3D Renders &amp; HABS/NPS Archive</button>
+        <button class="atlas-tab-btn" data-tab="tab-sundagger">2. Fajada Butte Sun Dagger Simulator</button>
+        <button class="atlas-tab-btn" data-tab="tab-masonry">3. Chacoan Masonry Typology (Types I–IV)</button>
+        <button class="atlas-tab-btn" data-tab="tab-sources">4. Primary Data Archive Links (10 Sources)</button>
+      </div>
+
+      <!-- Tab 1: LiDAR Breakdowns, 3D Renders & Public Domain HABS/NPS Reference Photos -->
+      <div id="tab-renders" class="atlas-tab-content active">
+        <div class="comparison-grid">
+          <div class="comp-card">
+            <h4>0.5m Airborne LiDAR Breakdown: DSM, Bare-Earth DEM, Scrub Foliage &amp; Standing Masonry Relief</h4>
+            <div class="comp-images">
+              <div>
+                <img src="./renders/lidar_data_and_foliage_breakdown.jpg" alt="0.5m LiDAR 4-Panel Breakdown" />
+                <span>OpenTopography 0.5m LiDAR (OT.042019.6342.1): DSM, DEM &amp; Foliage Breakdown</span>
+              </div>
+              <div>
+                <img src="./renders/hud_stage1_lidar_sweep.jpg" alt="Stage 01 50cm LiDAR Terrain Sweep" />
+                <span>Stage 01: True 50cm Airborne LiDAR Elevation Sweep (EPSG:6342 UTM 13N)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="comp-card">
+            <h4>Aerial Overview: D-Shaped Great House, Dual Courts &amp; Stratified Chacra Mesa Cliff</h4>
+            <div class="comp-images">
+              <div>
+                <img src="./renders/render_aerial.jpg" alt="Blender Aerial Render" />
+                <span>Blender 5.2 Render (1024px Spectral PBR &amp; AgX Lighting)</span>
+              </div>
+              <div>
+                <img src="./renders/archival/pd_nps_aerial_overlook.jpg" alt="Pueblo Bonito NPS Cliff Overlook Photograph" />
+                <span>National Park Service (NPS) Cliff-Top Overlook Reference (Public Domain)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="comp-card">
+            <h4>Measured NPS Architectural Floorplan vs. Great Kiva A Sanctuary</h4>
+            <div class="comp-images">
+              <div>
+                <img src="./renders/render_kiva_a.jpg" alt="Blender Great Kiva A Render" />
+                <span>Great Kiva A: Type III Banded Veneer, 4 Square Masonry Columns &amp; Subfloor Vaults</span>
+              </div>
+              <div>
+                <img src="./renders/pd_nps_pueblo_bonito_plan.jpg" alt="NPS Measured Plan of Pueblo Bonito" />
+                <span>National Park Service (NPS) Measured Architectural Plan (Lekson 1984)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="comp-card">
+            <h4>Chacoan T-Shaped Doorways, Pine Lintels &amp; Type III Banded Masonry</h4>
+            <div class="comp-images">
+              <div>
+                <img src="./renders/render_doorways.jpg" alt="Blender T-Shaped Doorways Render" />
+                <span>Blender Render: East Wing T-Shaped Doorways &amp; Banded Ashlar/Spalls</span>
+              </div>
+              <div>
+                <img src="./renders/bonito_doorways.jpg" alt="Pueblo Bonito Doorways Reference" />
+                <span>NPS / HABS Reference: Aligned Doorways at Pueblo Bonito (Public Domain)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="comp-card">
+            <h4>HABS No. NM-30 (LOC Control No. nm0107) Measured Sections &amp; 1877 USGS Survey Plan</h4>
+            <div class="comp-images">
+              <div>
+                <img src="./renders/archival/pd_habs_sheet5_elevations.jpg" alt="HABS No. NM-30 Sheet 5 Section 1 Doorways" />
+                <span>HABS No. NM-30 Sheet 5 (LOC nm0107, 1937): Section 1 (Rooms 174–177, 225–226) T-Door &amp; Corner Doorway Elevations</span>
+              </div>
+              <div>
+                <img src="./renders/pd_usgs_1877_bonito_plan.jpg" alt="1877 USGS W.H. Jackson Ground Plan" />
+                <span>1877 U.S. Geological Survey (W.H. Jackson) Ground Plan of Pueblo Bonito</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="comp-card">
+            <h4>Reconstructed 4-Story Northern Spine, Threatening Rock (1941) &amp; Analytical LiDAR Hillshade DSM</h4>
+            <div class="comp-images">
+              <div>
+                <img src="./renders/render_cliff.jpg" alt="Blender Threatening Rock Render" />
+                <span>Reconstructed 4-Story North Arc &amp; 1941 Threatening Rock Collapse Talus</span>
+              </div>
+              <div>
+                <img src="./renders/hud_stage2_lidar_dsm_full.jpg" alt="Analytical LiDAR Hillshade DSM" />
+                <span>Stage 02: Analytical 0.5m LiDAR Hillshade DSM &amp; Contour Grid</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Sun Dagger & Archaeoastronomy -->
+      <div id="tab-sundagger" class="atlas-tab-content">
+        <div class="sundagger-layout">
+          <div class="sundagger-text">
+            <h3>Fajada Butte Three-Slab Sun Dagger (29SJ297) &amp; Cardinal Cosmology</h3>
+            <p>
+              Rising 135 meters above the southeastern entrance of Chaco Canyon, <strong>Fajada Butte (Tsé Diyilí)</strong> houses the <strong>Three-Slab Site (29SJ297)</strong> documented by Anna Sofaer in 1977 (Sofaer et al. 1979 <em>Science</em> 206:283–291). Three leaning slabs of Cliff House Sandstone (~2–3 m tall) channel narrow slivers of sunlight ("daggers") onto two pecked spiral petroglyphs on the cliff face behind them:
+            </p>
+            <ul>
+              <li><strong>Summer Solstice Noon (June 21):</strong> A single vertical light dagger pierces the exact center of the large 9.5-turn spiral petroglyph.</li>
+              <li><strong>Winter Solstice Noon (Dec 21):</strong> Two parallel light daggers bracket the exact outer left and right tangents of the large spiral, leaving its center dark.</li>
+              <li><strong>Spring &amp; Autumnal Equinoxes:</strong> One dagger falls midway between the center and right edge of the large spiral, while a second dagger pierces the exact center of the smaller 2.5-turn spiral to the upper left.</li>
+              <li><strong>18.6-Year Lunar Major &amp; Minor Standstills:</strong> Moonrise shadow edges align with the center (minor standstill) and left tangent (major standstill) of the 9.5-turn spiral, with 19 diagonal grooves matching the 18.6-year lunar nodal cycle (Sofaer et al. 1982).</li>
+            </ul>
+            <p>
+              Across the canyon floor below, <strong>Pueblo Bonito</strong>, <strong>Chetro Ketl</strong>, and <strong>Casa Rinconada</strong> encode these same astronomical axes at monumental scale: Pueblo Bonito's central dividing wall and sightline across Chaco Wash to Casa Rinconada follow the true <strong>North–South cardinal meridian</strong>, while its southern closing wall aligns to the <strong>East–West equinox sunrise/sunset</strong>, and <strong>Room 228 (and adjacent Room 225)</strong> in the southeastern corner sector feature exterior corner windows aligned to the <strong>Winter Solstice sunrise (~120° ESE; Reyman 1976 <em>Science</em> 193(4257):1037–1038)</strong>.
+            </p>
+          </div>
+          <div class="sundagger-Interactive-box">
+            <h4>Interactive Sun Dagger Petroglyph Simulator</h4>
+            <canvas id="sundagger-canvas" width="320" height="260"></canvas>
+            <div class="sd-controls">
+              <button class="sd-btn active" data-sd="summer">Summer Solstice</button>
+              <button class="sd-btn" data-sd="equinox">Equinox</button>
+              <button class="sd-btn" data-sd="winter">Winter Solstice</button>
+              <button class="sd-btn" data-sd="lunar">Lunar Standstill</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Masonry Typology -->
+      <div id="tab-masonry" class="atlas-tab-content">
+        <div class="masonry-grid">
+          <div class="masonry-card">
+            <div class="m-header"><span class="m-badge">TYPE I</span> <strong>AD 850–935 (Old Bonito Nucleus)</strong></div>
+            <p>Uncoursed, unshaped thin tabular sandstone slabs (~3–5 cm thick) laid in abundant buff mud mortar without a rubble core. Preserved in the original 9th–10th century crescent surrounding Room 33 (the High-Status Matrilineal Crypt), Room 32, Room 28, Room 38, and the western Old Bonito block (including Room 326).</p>
+          </div>
+          <div class="masonry-card">
+            <div class="m-header"><span class="m-badge">TYPE II</span> <strong>AD 1020–1060 (Early Classic Expansion)</strong></div>
+            <p>First true load-bearing <strong>core-and-veneer</strong> construction (~0.8–0.91 m thick): a rubble-and-mortar interior core faced with dressed sandstone blocks chinked with small tabular spalls to protect the mortar from high-desert rain erosion along the Northern Spine.</p>
+          </div>
+          <div class="masonry-card">
+            <div class="m-header"><span class="m-badge">TYPE III</span> <strong>AD 1060–1085 (Peak Monumental Banded Veneer)</strong></div>
+            <p>The signature aesthetic of Classic Bonito architecture: alternating horizontal bands of finely pecked rectangular ashlar blocks and multiple tight courses of thin, darker tabular sandstone chink spalls. Used in Great Kiva A, the East/West Wings, and Casa Rinconada.</p>
+          </div>
+          <div class="masonry-card">
+            <div class="m-header"><span class="m-badge">TYPE IV &amp; McELMO</span> <strong>AD 1085–1140 (Late Bonito Phase)</strong></div>
+            <p>Type IV features uniform courses of thin, tabular dressed stones with minimal chinking; McElmo style uses large, pecked, dimpled rectangular blocks of soft yellowish sandstone laid in double-wythe walls along the South Closing Arc and Pueblo del Arroyo's Hubbard Tri-Wall.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 4: Primary Data Sources -->
+      <div id="tab-sources" class="atlas-tab-content">
+        <div class="sources-list" id="sources-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

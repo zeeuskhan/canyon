@@ -1,0 +1,8 @@
+{
+  "name": "Remix Chaco Canyon 3D",
+  "description": "An interactive 3D architectural reconstruction of Chaco Canyon’s Pueblo Bonito (c. AD 850–1150), built from 0.5m airborne LiDAR and archival HABS/NPS surveys. Explore Chaco’s iconic great house featuring massive Kivas and ancient ceremonial rooms.\n",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
